@@ -123,7 +123,7 @@ async def process_update(token: str, update_data: dict):
         logger.error(f"Update qayta ishlashda xato: {e}")
 
 
-   async def startup_all_bots():
+async def startup_all_bots():
     """
     Server qayta ishga tushganda barcha faol botlarni yuklash
     """
