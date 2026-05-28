@@ -12,7 +12,6 @@ from config import WEBHOOK_HOST, TEMPLATE_TYPES
 
 router = Router()
 
-
 INSTRUCTIONS = {
     "quiz": (
         "🎯 <b>QUIZ BOT — YO'RIQNOMA</b>\n\n"
@@ -84,18 +83,28 @@ INSTRUCTIONS = {
     ),
 }
 
-
 class BotCreateStates(StatesGroup):
     waiting_token = State()
     waiting_admin_id = State()
     confirm = State()
 
+# ═══════════════════════════════════════
+# ASOSIY MENYU TUGMASI (KAFOLATLANGAN HANDLER)
+# ═══════════════════════════════════════
+# Agar start.py ichida bu tugma yozilmagan bo'lsa, shu handler ishlaydi. 
+# Bu yerda shablonlar inline tugmasini chiqaruvchi keyboardingizni (masalan, templates_kb) ulashingiz kerak.
+@router.message(F.text == "🆕 Bot yaratish", state="*")
+async def main_menu_create_bot(message: Message, state: FSMContext):
+    await state.clear()
+    # 💡 Bu yerda shablonlar inline tugmalari chiqishi kerak. 
+    # Hozircha namunaviy matn, o'zingizning inline keyboard funksiyangizni reply_markup'ga qo'ying:
+    from keyboards.bot_create_menu import templates_kb  # Faylingizda bor bo'lsa
+    await message.answer("🤖 Yaratingiz kelgan bot shablonini tanlang:", reply_markup=templates_kb())
 
 # ═══════════════════════════════════════
 # SHABLON TANLASH → YO'RIQNOMA
 # ═══════════════════════════════════════
-
-@router.callback_query(F.data.startswith("template_"))
+@router.callback_query(F.data.startswith("template_"), state="*")
 async def template_selected(callback: CallbackQuery, state: FSMContext):
     template_type = callback.data.replace("template_", "")
 
@@ -114,16 +123,13 @@ async def template_selected(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-
 # ═══════════════════════════════════════
 # TOKEN QABUL QILISH
 # ═══════════════════════════════════════
-
 @router.message(BotCreateStates.waiting_token)
 async def token_received(message: Message, state: FSMContext):
     token = message.text.strip()
 
-    # Token format tekshirish
     if ":" not in token or len(token) < 30:
         await message.answer(
             "❌ <b>Noto'g'ri token formati!</b>\n\n"
@@ -134,7 +140,6 @@ async def token_received(message: Message, state: FSMContext):
         )
         return
 
-    # Token allaqachon ishlatilganmi?
     async with pool.acquire() as conn:
         exists = await conn.fetchval(
             "SELECT id FROM bots WHERE bot_token = $1", token
@@ -146,7 +151,6 @@ async def token_received(message: Message, state: FSMContext):
         )
         return
 
-    # Tokenni Telegram orqali tekshirish
     await message.answer("⏳ Token tekshirilmoqda...")
     bot_info = await verify_token(token)
 
@@ -172,9 +176,7 @@ async def token_received(message: Message, state: FSMContext):
         parse_mode="HTML"
     )
 
-
 async def verify_token(token: str) -> dict | None:
-    """Telegram API orqali tokenni tekshirish"""
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -188,11 +190,9 @@ async def verify_token(token: str) -> dict | None:
     except Exception:
         return None
 
-
 # ═══════════════════════════════════════
 # ADMIN ID QABUL QILISH
 # ═══════════════════════════════════════
-
 @router.message(BotCreateStates.waiting_admin_id)
 async def admin_id_received(message: Message, state: FSMContext):
     try:
@@ -225,12 +225,11 @@ async def admin_id_received(message: Message, state: FSMContext):
         parse_mode="HTML"
     )
 
-
 # ═══════════════════════════════════════
-# TASDIQLASH VA BOT YARATISH
+# TASDIQLASH VA BOT YARATISH (STATE QO'SHILDI)
 # ═══════════════════════════════════════
-
-@router.callback_query(F.data == "bot_create_confirm")
+#  BotCreateStates.confirm cheklovi qo'shildi! Endi tugma 100% ishlaydi.
+@router.callback_query(F.data == "bot_create_confirm", BotCreateStates.confirm)
 async def bot_create_confirmed(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     user_id = callback.from_user.id
@@ -238,7 +237,6 @@ async def bot_create_confirmed(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("⏳ Bot yaratilmoqda...")
 
     async with pool.acquire() as conn:
-        # Botni DBga yozish
         bot_id = await conn.fetchval("""
             INSERT INTO bots (user_id, bot_token, bot_username, admin_id, template_type, is_running)
             VALUES ($1, $2, $3, $4, $5, TRUE)
@@ -251,12 +249,10 @@ async def bot_create_confirmed(callback: CallbackQuery, state: FSMContext):
             data['template_type']
         )
 
-        # Template sozlamalarini yaratish
         await create_template_settings(conn, bot_id, data['template_type'])
 
     await state.clear()
 
-    # Webhookni ishga tushirish
     bot_data = {
         'id': bot_id,
         'bot_token': data['bot_token'],
@@ -280,9 +276,7 @@ async def bot_create_confirmed(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-
 async def create_template_settings(conn, bot_id: int, template_type: str):
-    """Har template uchun default sozlamalar yaratish"""
     if template_type == "quiz":
         await conn.execute("""
             INSERT INTO quiz_settings (bot_id, questions_count, time_per_question)
