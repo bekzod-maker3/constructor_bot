@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
 from database import pool, get_setting
-from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb
+from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb, remove_kb, remove_kb
 from utils.subscription import check_user_subscription
 from config import ADMIN_ID
 
@@ -89,7 +89,7 @@ async def apply_referral_bonus(referrer_id: int, new_user_id: int):
 
 
 async def send_main_menu(target, user: dict, state: FSMContext = None):
-    """Asosiy menyuni yuborish"""
+    """Asosiy menyuni yuborish — Reply Keyboard"""
     if state:
         await state.clear()
 
@@ -107,14 +107,14 @@ async def send_main_menu(target, user: dict, state: FSMContext = None):
     text = (
         f"👋 Xush kelibsiz, <b>{user['full_name']}</b>!\n\n"
         f"{trial_text}"
-        f"💰 Balans: <b>{user['balance']:,} so'm</b>\n\n"
+        f"💰 Balans: <b>{user['balance']:,} so\'m</b>\n\n"
         f"Quyidagi tugmalardan birini tanlang:"
     )
 
     if isinstance(target, Message):
         await target.answer(text, reply_markup=main_menu_kb(), parse_mode="HTML")
     elif isinstance(target, CallbackQuery):
-        await target.message.edit_text(text, reply_markup=main_menu_kb(), parse_mode="HTML")
+        await target.message.answer(text, reply_markup=main_menu_kb(), parse_mode="HTML")
 
 
 # ═══════════════════════════════════════
@@ -237,3 +237,145 @@ async def help_handler(callback: CallbackQuery):
         parse_mode="HTML"
     )
     await callback.answer()
+
+
+# ═══════════════════════════════════════
+# REPLY KEYBOARD TUGMALARI HANDLERLARI
+# ═══════════════════════════════════════
+
+@router.message(F.text == "🆕 Bot yaratish")
+async def reply_create_bot(message: Message):
+    from handlers.my_bots import create_bot_handler
+    # Fake callback yaratish o'rniga to'g'ridan inline menyu chiqaramiz
+    from keyboards.main_menu import template_select_kb
+    from utils.billing import can_create_bot
+    user_id = message.from_user.id
+    can, reason = await can_create_bot(user_id)
+    if not can:
+        await message.answer(
+            f"❌ <b>Bot yaratib bo'lmaydi</b>\n\n{reason}",
+            reply_markup=back_to_main_kb(),
+            parse_mode="HTML"
+        )
+        return
+    await message.answer(
+        "🆕 <b>Bot yaratish</b>\n\nQaysi turdagi bot yaratmoqchisiz?",
+        reply_markup=template_select_kb(),
+        parse_mode="HTML"
+    )
+
+
+@router.message(F.text == "📋 Mening botlarim")
+async def reply_my_bots(message: Message):
+    from database import pool
+    from keyboards.bot_create_menu import my_bots_kb
+    async with pool.acquire() as conn:
+        bots = await conn.fetch("""
+            SELECT id, bot_username, template_type, is_running, created_at
+            FROM bots WHERE user_id = $1
+            ORDER BY created_at DESC
+        """, message.from_user.id)
+
+    if not bots:
+        await message.answer(
+            "🤖 <b>Mening botlarim</b>\n\n"
+            "Hali birorta bot yaratmadingiz.\n"
+            "«🆕 Bot yaratish» tugmasini bosing.",
+            parse_mode="HTML"
+        )
+        return
+
+    bots_list = [dict(b) for b in bots]
+    running = sum(1 for b in bots_list if b['is_running'])
+    await message.answer(
+        f"🤖 <b>Mening botlarim</b>\n\n"
+        f"Jami: <b>{len(bots_list)} ta</b> | Faol: <b>{running} ta</b>\n\n"
+        f"Botni tanlang:",
+        reply_markup=my_bots_kb(bots_list),
+        parse_mode="HTML"
+    )
+
+
+@router.message(F.text == "💰 Balans")
+async def reply_balance(message: Message):
+    from database import pool, get_setting
+    from keyboards.bot_create_menu import balance_kb
+    from datetime import datetime
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow(
+            "SELECT * FROM users WHERE user_id = $1", message.from_user.id
+        )
+        bots_count = await conn.fetchval("""
+            SELECT COUNT(*) FROM bots
+            WHERE user_id = $1 AND is_running = TRUE
+        """, message.from_user.id)
+
+    trial_active = (
+        user['trial_ends_at'] and user['trial_ends_at'] > datetime.now()
+    )
+    if trial_active:
+        days_left = (user['trial_ends_at'] - datetime.now()).days + 1
+        trial_text = f"🎁 Trial: <b>{days_left} kun</b> qoldi\n"
+    else:
+        trial_text = ""
+
+    daily_price = await get_setting('daily_price') or '3000'
+    daily_total = int(daily_price) * (bots_count or 0)
+
+    await message.answer(
+        f"💰 <b>Balans</b>\n\n"
+        f"{trial_text}"
+        f"💵 Joriy balans: <b>{user['balance']:,} so'm</b>\n"
+        f"🤖 Faol botlar: <b>{bots_count} ta</b>\n"
+        f"📊 Kunlik to'lov: <b>{daily_total:,} so'm</b>\n\n"
+        f"Balansni to'ldirish uchun tugmani bosing 👇",
+        reply_markup=balance_kb(),
+        parse_mode="HTML"
+    )
+
+
+@router.message(F.text == "🔗 Do'st taklif qilish")
+async def reply_referral(message: Message, bot: Bot):
+    from database import pool, get_setting
+    user_id = message.from_user.id
+    bot_info = await bot.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
+
+    async with pool.acquire() as conn:
+        refs_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM referrals WHERE referrer_id = $1", user_id
+        )
+        total_earned = await conn.fetchval(
+            "SELECT COALESCE(SUM(bonus_amount), 0) FROM referrals WHERE referrer_id = $1",
+            user_id
+        )
+
+    bonus = await get_setting('referral_bonus') or '5000'
+
+    await message.answer(
+        f"🔗 <b>Do'st taklif qilish</b>\n\n"
+        f"Har bir do'stingiz uchun <b>{int(bonus):,} so'm</b> bonus!\n\n"
+        f"👥 Taklif qilganlar: <b>{refs_count} ta</b>\n"
+        f"💰 Jami ishlagan: <b>{total_earned:,} so'm</b>\n\n"
+        f"🔗 Havolangiz:\n<code>{referral_link}</code>",
+        reply_markup=back_to_main_kb(),
+        parse_mode="HTML"
+    )
+
+
+@router.message(F.text == "📞 Yordam")
+async def reply_help(message: Message):
+    await message.answer(
+        "📞 <b>Yordam</b>\n\n"
+        "▪️ <b>Bot yaratish qancha turadi?</b>\n"
+        "Har bir bot uchun kuniga 3,000 so'm.\n\n"
+        "▪️ <b>Trial nima?</b>\n"
+        "Birinchi 7 kun bepul — 1 ta bot bepul.\n\n"
+        "▪️ <b>Balans tugasa nima bo'ladi?</b>\n"
+        "Bot to'xtatiladi. To'ldirilgach qayta ishga tushadi.\n\n"
+        "▪️ <b>Nechta bot yaratish mumkin?</b>\n"
+        "Cheksiz — har biri 3,000 so'm/kun.\n\n"
+        "👨‍💻 Admin: @admin_username",
+        reply_markup=back_to_main_kb(),
+        parse_mode="HTML"
+    )
