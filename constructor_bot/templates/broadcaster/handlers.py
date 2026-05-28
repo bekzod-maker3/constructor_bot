@@ -42,7 +42,7 @@ class BcStates(StatesGroup):
 
 async def get_bot_row(bot: Bot) -> dict | None:
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -56,7 +56,7 @@ async def is_admin_user(bot: Bot, user_id: int) -> bool:
 
 
 async def get_channels(bot_id: int) -> list:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT * FROM broadcaster_channels WHERE bot_id = $1", bot_id
         )
@@ -394,7 +394,7 @@ async def bc_confirm_channels(callback: CallbackQuery, state: FSMContext, bot: B
     scheduled_at = datetime.fromisoformat(data['scheduled_at'])
 
     # Har tanlangan kanal uchun xabar yaratish
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         for ch_id in selected:
             ch = await conn.fetchrow(
                 "SELECT channel_id FROM broadcaster_channels WHERE id = $1", ch_id
@@ -456,7 +456,7 @@ async def bc_scheduled_list(callback: CallbackQuery, bot: Bot):
         return
 
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         messages = await conn.fetch("""
             SELECT id, channel_id, schedule_type, is_active, scheduled_at
             FROM broadcaster_messages
@@ -483,7 +483,7 @@ async def bc_message_detail(callback: CallbackQuery, bot: Bot):
 
     msg_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         msg = await conn.fetchrow(
             "SELECT * FROM broadcaster_messages WHERE id = $1", msg_id
         )
@@ -524,7 +524,7 @@ async def bc_pause_message(callback: CallbackQuery, bot: Bot):
     msg_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "UPDATE broadcaster_messages SET is_active = FALSE WHERE id = $1", msg_id
         )
@@ -541,7 +541,7 @@ async def bc_resume_message(callback: CallbackQuery, bot: Bot):
     msg_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "UPDATE broadcaster_messages SET is_active = TRUE WHERE id = $1", msg_id
         )
@@ -567,7 +567,7 @@ async def bc_delete_message(callback: CallbackQuery, bot: Bot):
 
     await cancel_scheduled_message(row['id'], msg_id)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "DELETE FROM broadcaster_messages WHERE id = $1", msg_id
         )
@@ -652,7 +652,7 @@ async def bc_channel_name(message: Message, state: FSMContext, bot: Bot):
 
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO broadcaster_channels (bot_id, channel_id, channel_name)
             VALUES ($1, $2, $3)
@@ -673,7 +673,7 @@ async def bc_delete_channel(callback: CallbackQuery, bot: Bot):
         return
     ch_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "DELETE FROM broadcaster_channels WHERE id = $1", ch_id
         )
@@ -693,7 +693,7 @@ async def bc_stats_handler(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
     bot_id = row['id']
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         total_msgs = await conn.fetchval(
             "SELECT COUNT(*) FROM broadcaster_messages WHERE bot_id = $1", bot_id
         )

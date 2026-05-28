@@ -35,7 +35,7 @@ class RefStates(StatesGroup):
 
 async def get_bot_row(bot: Bot) -> dict | None:
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -44,7 +44,7 @@ async def get_bot_row(bot: Bot) -> dict | None:
 
 
 async def check_sub(bot: Bot, user_id: int, bot_id: int) -> tuple[bool, list]:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT * FROM bot_required_channels WHERE bot_id = $1", bot_id
         )
@@ -62,7 +62,7 @@ async def check_sub(bot: Bot, user_id: int, bot_id: int) -> tuple[bool, list]:
 
 
 async def get_settings(bot_id: int) -> dict:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT * FROM referral_bot_settings WHERE bot_id = $1", bot_id
         )
@@ -79,7 +79,7 @@ async def is_admin_user(bot: Bot, user_id: int) -> bool:
 
 
 async def get_user(bot_id: int, user_id: int) -> dict | None:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT * FROM referral_bot_users
             WHERE bot_id = $1 AND user_id = $2
@@ -166,7 +166,7 @@ async def ref_phone_received(message: Message, state: FSMContext, bot: Bot):
     referrer_id = data.get('referrer_id')
 
     # Telefon raqam allaqachon bormi?
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         phone_exists = await conn.fetchval("""
             SELECT id FROM referral_bot_users
             WHERE bot_id = $1 AND phone = $2
@@ -278,7 +278,7 @@ async def ref_link_handler(callback: CallbackQuery, bot: Bot):
 
     link = f"https://t.me/{bot_info.username}?start=ref_{callback.from_user.id}"
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         refs_count = await conn.fetchval("""
             SELECT COUNT(*) FROM referral_bot_users
             WHERE bot_id = $1 AND referred_by = $2
@@ -305,7 +305,7 @@ async def ref_balance_handler(callback: CallbackQuery, bot: Bot):
     if not user:
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         refs_count = await conn.fetchval("""
             SELECT COUNT(*) FROM referral_bot_users
             WHERE bot_id = $1 AND referred_by = $2
@@ -335,7 +335,7 @@ async def ref_balance_handler(callback: CallbackQuery, bot: Bot):
 async def ref_leaderboard_handler(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         top = await conn.fetch("""
             SELECT u.full_name, u.username,
                    COUNT(r.id) as refs_count,
@@ -443,7 +443,7 @@ async def withdraw_card(message: Message, state: FSMContext, bot: Bot):
     bot_id = data['bot_id']
     amount = data['withdraw_amount']
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         # Balansdan yechish
         await conn.execute("""
             UPDATE referral_bot_users
@@ -543,7 +543,7 @@ async def ref_admin_withdrawals(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         withdrawals = await conn.fetch("""
             SELECT w.id, w.user_id, w.amount, w.card_number,
                    u.full_name, u.username
@@ -581,7 +581,7 @@ async def ref_view_withdrawal(callback: CallbackQuery, bot: Bot):
     w_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         w = await conn.fetchrow("""
             SELECT w.*, u.full_name, u.username
             FROM referral_bot_withdrawals w
@@ -612,7 +612,7 @@ async def ref_confirm_withdrawal(callback: CallbackQuery, bot: Bot):
     w_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         w = await conn.fetchrow(
             "SELECT * FROM referral_bot_withdrawals WHERE id = $1", w_id
         )
@@ -653,7 +653,7 @@ async def ref_reject_withdrawal(callback: CallbackQuery, bot: Bot):
     w_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         w = await conn.fetchrow(
             "SELECT * FROM referral_bot_withdrawals WHERE id = $1", w_id
         )
@@ -696,7 +696,7 @@ async def ref_admin_users(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         users = await conn.fetch("""
             SELECT user_id, full_name, username, balance, is_banned
             FROM referral_bot_users WHERE bot_id = $1
@@ -739,7 +739,7 @@ async def ref_admin_user_detail(callback: CallbackQuery, bot: Bot):
 
     status = "🚫 Banlangan" if user['is_banned'] else "✅ Faol"
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         refs = await conn.fetchval("""
             SELECT COUNT(*) FROM referral_bot_users
             WHERE bot_id = $1 AND referred_by = $2
@@ -764,7 +764,7 @@ async def ref_ban_user(callback: CallbackQuery, bot: Bot):
         return
     user_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE referral_bot_users SET is_banned = TRUE
             WHERE bot_id = $1 AND user_id = $2
@@ -779,7 +779,7 @@ async def ref_unban_user(callback: CallbackQuery, bot: Bot):
         return
     user_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE referral_bot_users SET is_banned = FALSE
             WHERE bot_id = $1 AND user_id = $2
@@ -825,7 +825,7 @@ async def save_bonus(message: Message, state: FSMContext, bot: Bot):
         await message.answer("❌ Faqat raqam kiriting.")
         return
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE referral_bot_settings SET bonus_per_referral = $1 WHERE bot_id = $2
         """, amount, row['id'])
@@ -854,7 +854,7 @@ async def save_min_w(message: Message, state: FSMContext, bot: Bot):
         await message.answer("❌ Faqat raqam kiriting.")
         return
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE referral_bot_settings SET min_withdrawal = $1 WHERE bot_id = $2
         """, amount, row['id'])
@@ -878,7 +878,7 @@ async def ref_set_card(callback: CallbackQuery, bot: Bot, state: FSMContext):
 @router.message(RefStates.set_card)
 async def save_card(message: Message, state: FSMContext, bot: Bot):
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE referral_bot_settings SET payment_card = $1 WHERE bot_id = $2
         """, message.text.strip(), row['id'])
@@ -899,7 +899,7 @@ async def ref_admin_stats(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
     bot_id = row['id']
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         total_users = await conn.fetchval(
             "SELECT COUNT(*) FROM referral_bot_users WHERE bot_id = $1", bot_id
         )
@@ -943,7 +943,7 @@ async def ref_broadcast_start(callback: CallbackQuery, bot: Bot, state: FSMConte
 async def ref_broadcast_send(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         users = await conn.fetch("""
             SELECT user_id FROM referral_bot_users
             WHERE bot_id = $1 AND is_banned = FALSE
@@ -971,7 +971,7 @@ async def ref_channels(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT id, channel_name FROM bot_required_channels WHERE bot_id = $1",
             row['id']
@@ -1023,7 +1023,7 @@ async def ref_ch_url(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     await state.clear()
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO bot_required_channels (bot_id, channel_id, channel_name, channel_url)
             VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
@@ -1040,7 +1040,7 @@ async def ref_del_ch(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     ch_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM bot_required_channels WHERE id = $1", ch_id)
     await callback.answer("✅ O'chirildi!", show_alert=True)
     await ref_channels(callback, bot)

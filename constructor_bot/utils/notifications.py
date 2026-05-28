@@ -18,7 +18,7 @@ async def broadcast_message(bot: Bot, text: str, target: str = "all") -> dict:
     Foydalanuvchilarga ommaviy xabar yuborish.
     target: 'all' | 'active' | 'trial'
     """
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         if target == "all":
             users = await conn.fetch("""
                 SELECT user_id FROM users WHERE is_banned = FALSE

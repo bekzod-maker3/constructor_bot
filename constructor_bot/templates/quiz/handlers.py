@@ -36,7 +36,7 @@ class QuizStates(StatesGroup):
 
 async def get_bot_row(bot: Bot) -> dict | None:
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -45,7 +45,7 @@ async def get_bot_row(bot: Bot) -> dict | None:
 
 
 async def check_sub(bot: Bot, user_id: int, bot_id: int) -> tuple[bool, list]:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT * FROM bot_required_channels WHERE bot_id = $1", bot_id
         )
@@ -63,7 +63,7 @@ async def check_sub(bot: Bot, user_id: int, bot_id: int) -> tuple[bool, list]:
 
 
 async def get_settings(bot_id: int) -> dict:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT * FROM quiz_settings WHERE bot_id = $1", bot_id
         )
@@ -76,7 +76,7 @@ async def is_admin_user(bot: Bot, user_id: int) -> bool:
 
 
 async def is_banned_user(bot_id: int, user_id: int) -> bool:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT 1 FROM quiz_banned_users
             WHERE bot_id = $1 AND user_id = $2
@@ -160,7 +160,7 @@ async def quiz_start_test(callback: CallbackQuery, bot: Bot, state: FSMContext):
 
     settings = await get_settings(bot_id)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         all_questions = await conn.fetch(
             "SELECT * FROM quiz_questions WHERE bot_id = $1", bot_id
         )
@@ -292,7 +292,7 @@ async def finish_test(message: Message, state: FSMContext, bot: Bot, user_id: in
 
     user = await bot.get_chat(user_id)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO quiz_results (bot_id, user_id, username, full_name, score, total)
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -337,7 +337,7 @@ async def quiz_leaderboard(callback: CallbackQuery, bot: Bot):
     if not row:
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         top = await conn.fetch("""
             SELECT full_name, username, score, total,
                    ROUND(score::numeric/total*100) as percent
@@ -436,7 +436,7 @@ async def quiz_file_received(message: Message, state: FSMContext, bot: Bot):
         await state.clear()
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         # Eski savollarni o'chirish
         await conn.execute("DELETE FROM quiz_questions WHERE bot_id = $1", bot_id)
 
@@ -507,7 +507,7 @@ async def quiz_set_count(message: Message, state: FSMContext, bot: Bot):
         return
 
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE quiz_settings SET questions_count = $1 WHERE bot_id = $2
         """, count, row['id'])
@@ -540,7 +540,7 @@ async def quiz_set_time(message: Message, state: FSMContext, bot: Bot):
         return
 
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE quiz_settings SET time_per_question = $1 WHERE bot_id = $2
         """, seconds, row['id'])
@@ -561,7 +561,7 @@ async def quiz_users_handler(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         users = await conn.fetch("""
             SELECT DISTINCT qr.user_id, qr.full_name, qr.username,
                 COALESCE(qb.user_id IS NOT NULL, FALSE) as is_banned
@@ -591,7 +591,7 @@ async def quiz_ban_user(callback: CallbackQuery, bot: Bot):
     user_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO quiz_banned_users (bot_id, user_id)
             VALUES ($1, $2) ON CONFLICT DO NOTHING
@@ -607,7 +607,7 @@ async def quiz_unban_user(callback: CallbackQuery, bot: Bot):
     user_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             DELETE FROM quiz_banned_users WHERE bot_id = $1 AND user_id = $2
         """, row['id'], user_id)
@@ -623,7 +623,7 @@ async def quiz_results_handler(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         results = await conn.fetch("""
             SELECT full_name, username, score, total,
                    ROUND(score::numeric/total*100) as percent,
@@ -666,7 +666,7 @@ async def quiz_broadcast_send(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         users = await conn.fetch("""
             SELECT DISTINCT user_id FROM quiz_results WHERE bot_id = $1
         """, row['id'])
@@ -693,7 +693,7 @@ async def quiz_channels_handler(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT id, channel_name FROM bot_required_channels WHERE bot_id = $1",
             row['id']
@@ -746,7 +746,7 @@ async def quiz_ch_url(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO bot_required_channels (bot_id, channel_id, channel_name, channel_url)
             VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
@@ -764,7 +764,7 @@ async def quiz_del_ch(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     ch_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM bot_required_channels WHERE id = $1", ch_id)
     await callback.answer("✅ O'chirildi!", show_alert=True)
     await quiz_channels_handler(callback, bot)

@@ -15,7 +15,7 @@ bot_schedulers: dict = {}
 
 async def send_scheduled_message(bot: Bot, msg_id: int):
     """Rejalashtirilgan xabarni yuborish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         msg = await conn.fetchrow("""
             SELECT * FROM broadcaster_messages WHERE id = $1 AND is_active = TRUE
         """, msg_id)
@@ -46,14 +46,14 @@ async def send_scheduled_message(bot: Bot, msg_id: int):
             )
 
         # Oxirgi yuborilgan vaqtni yangilash
-        async with pool.acquire() as conn:
+        async with database.pool.acquire() as conn:
             await conn.execute("""
                 UPDATE broadcaster_messages SET last_sent_at = NOW() WHERE id = $1
             """, msg_id)
 
         # Bir martalik xabarni o'chirish
         if msg['schedule_type'] == 'once':
-            async with pool.acquire() as conn:
+            async with database.pool.acquire() as conn:
                 await conn.execute("""
                     UPDATE broadcaster_messages SET is_active = FALSE WHERE id = $1
                 """, msg_id)
@@ -64,7 +64,7 @@ async def send_scheduled_message(bot: Bot, msg_id: int):
         logger.error(f"❌ Xabar #{msg_id} yuborilmadi: {e}")
 
         # Botni admin qilmagan bo'lsa xato logi
-        async with pool.acquire() as conn:
+        async with database.pool.acquire() as conn:
             bot_row = await conn.fetchrow(
                 "SELECT admin_id FROM bots WHERE id = $1", msg['bot_id']
             )
@@ -149,7 +149,7 @@ async def cancel_scheduled_message(bot_id: int, msg_id: int):
 
 async def startup_broadcaster_jobs(bot: Bot, bot_id: int):
     """Server qayta ishga tushganda barcha rejalashtirilganlarni yuklash"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         messages = await conn.fetch("""
             SELECT * FROM broadcaster_messages
             WHERE bot_id = $1 AND is_active = TRUE

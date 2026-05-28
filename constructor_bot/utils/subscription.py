@@ -5,7 +5,7 @@ from database import pool
 
 async def get_required_channels() -> list:
     """Konstruktor bot uchun majburiy kanallarni olish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT id, channel_id, channel_name, channel_url
             FROM required_channels
@@ -49,7 +49,7 @@ async def check_bot_subscription(bot: Bot, user_id: int, bot_id: int) -> tuple[b
     """
     Shablon bot uchun majburiy kanallarni tekshirish
     """
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT channel_id, channel_name, channel_url
             FROM bot_required_channels

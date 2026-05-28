@@ -270,7 +270,7 @@ async def reply_create_bot(message: Message):
 async def reply_my_bots(message: Message):
     from database import pool
     from keyboards.bot_create_menu import my_bots_kb
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_username, template_type, is_running, created_at
             FROM bots WHERE user_id = $1
@@ -302,7 +302,7 @@ async def reply_balance(message: Message):
     from database import pool, get_setting
     from keyboards.bot_create_menu import balance_kb
     from datetime import datetime
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", message.from_user.id
         )
@@ -342,7 +342,7 @@ async def reply_referral(message: Message, bot: Bot):
     bot_info = await bot.get_me()
     referral_link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         refs_count = await conn.fetchval(
             "SELECT COUNT(*) FROM referrals WHERE referrer_id = $1", user_id
         )

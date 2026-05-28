@@ -4,7 +4,7 @@ from database import pool, get_setting
 
 async def get_user_balance(user_id: int) -> int:
     """Foydalanuvchi balansini olish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT balance FROM users WHERE user_id = $1", user_id
         )
@@ -13,7 +13,7 @@ async def get_user_balance(user_id: int) -> int:
 
 async def add_balance(user_id: int, amount: int):
     """Balansga pul qo'shish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE users SET balance = balance + $1 WHERE user_id = $2
         """, amount, user_id)
@@ -24,7 +24,7 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
     Balansdan pul yechish.
     Qaytaradi: True — muvaffaqiyatli, False — yetarli emas
     """
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT balance FROM users WHERE user_id = $1", user_id
         )
@@ -39,7 +39,7 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
 
 async def is_trial_active(user_id: int) -> bool:
     """Trial muddati faolligini tekshirish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT trial_ends_at FROM users WHERE user_id = $1
         """, user_id)
@@ -50,7 +50,7 @@ async def is_trial_active(user_id: int) -> bool:
 
 async def get_user_bots(user_id: int) -> list:
     """Foydalanuvchi botlarini olish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT id, bot_token, bot_username, template_type,
                    is_active, is_running, created_at
@@ -63,7 +63,7 @@ async def get_user_bots(user_id: int) -> list:
 
 async def get_running_bots_count(user_id: int) -> int:
     """Ishlayotgan botlar sonini olish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT COUNT(*) as cnt FROM bots
             WHERE user_id = $1 AND is_running = TRUE
@@ -76,7 +76,7 @@ async def can_create_bot(user_id: int) -> tuple[bool, str]:
     Yangi bot yaratish mumkinligini tekshirish.
     Qaytaradi: (mumkin, sabab)
     """
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow("""
             SELECT balance, trial_ends_at, trial_used FROM users
             WHERE user_id = $1
@@ -109,7 +109,7 @@ async def process_daily_charges():
     """
     daily_price = int(await get_setting('daily_price') or 3000)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         # Barcha ishlaydigan botlarni olish
         running_bots = await conn.fetch("""
             SELECT b.id, b.user_id, b.bot_username, b.template_type,
@@ -169,7 +169,7 @@ async def reactivate_bots_if_balance(user_id: int):
     """
     daily_price = int(await get_setting('daily_price') or 3000)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         balance = await conn.fetchval(
             "SELECT balance FROM users WHERE user_id = $1", user_id
         )
@@ -193,7 +193,7 @@ async def reactivate_bots_if_balance(user_id: int):
 
 async def get_payment_history(user_id: int, limit: int = 10) -> list:
     """Foydalanuvchi to'lov tarixi"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT amount, status, created_at, confirmed_at
             FROM payments

@@ -43,7 +43,7 @@ class ShopStates(StatesGroup):
 
 async def get_bot_row(bot: Bot) -> dict | None:
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id, admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -52,7 +52,7 @@ async def get_bot_row(bot: Bot) -> dict | None:
 
 
 async def check_sub(bot: Bot, user_id: int, bot_id: int) -> tuple[bool, list]:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT * FROM bot_required_channels WHERE bot_id = $1", bot_id
         )
@@ -75,7 +75,7 @@ async def is_admin_user(bot: Bot, user_id: int) -> bool:
 
 
 async def register_user(bot_id: int, user_id: int, username: str):
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO kinobot_users (bot_id, user_id, username)
             VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
@@ -150,7 +150,7 @@ async def shop_catalog(callback: CallbackQuery, bot: Bot):
     if not row:
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         cats = await conn.fetch("""
             SELECT id, name FROM shop_categories
             WHERE bot_id = $1 ORDER BY position, id
@@ -173,7 +173,7 @@ async def shop_category(callback: CallbackQuery, bot: Bot):
     cat_id = int(callback.data.split("_")[-1])
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         cat = await conn.fetchrow(
             "SELECT name FROM shop_categories WHERE id = $1", cat_id
         )
@@ -199,7 +199,7 @@ async def shop_category(callback: CallbackQuery, bot: Bot):
 async def shop_product_detail(callback: CallbackQuery, bot: Bot):
     product_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         product = await conn.fetchrow(
             "SELECT * FROM shop_products WHERE id = $1", product_id
         )
@@ -242,7 +242,7 @@ async def shop_add_to_cart(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
     user_id = callback.from_user.id
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         product = await conn.fetchrow(
             "SELECT name FROM shop_products WHERE id = $1", product_id
         )
@@ -264,7 +264,7 @@ async def shop_cart_view(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
     user_id = callback.from_user.id
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         items = await conn.fetch("""
             SELECT sc.id as cart_id, sc.quantity,
                    sp.name, sp.price
@@ -305,7 +305,7 @@ async def shop_cart_view(callback: CallbackQuery, bot: Bot):
 @router.callback_query(F.data.startswith("shop_remove_"))
 async def shop_remove_from_cart(callback: CallbackQuery):
     cart_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM shop_carts WHERE id = $1", cart_id)
     await callback.answer("✅ O'chirildi!")
     await shop_cart_view(callback, callback.bot)
@@ -347,7 +347,7 @@ async def checkout_address(message: Message, state: FSMContext, bot: Bot):
     bot_id = row['id']
     user_id = message.from_user.id
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         items = await conn.fetch("""
             SELECT sc.quantity, sp.name, sp.price, sp.id as product_id
             FROM shop_carts sc
@@ -363,7 +363,7 @@ async def checkout_address(message: Message, state: FSMContext, bot: Bot):
     items_list = [dict(i) for i in items]
     total = sum(i['price'] * i['quantity'] for i in items_list)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         order_id = await conn.fetchval("""
             INSERT INTO shop_orders
             (bot_id, user_id, username, full_name, phone, address, items, total_price, status)
@@ -430,7 +430,7 @@ async def checkout_address(message: Message, state: FSMContext, bot: Bot):
 async def shop_user_orders(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         orders = await conn.fetch("""
             SELECT id, total_price, status, created_at
             FROM shop_orders
@@ -476,7 +476,7 @@ async def update_order_status(callback: CallbackQuery, bot: Bot, order_id: int, 
         'rejected': '❌ Rad etildi'
     }
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         order = await conn.fetchrow(
             "SELECT * FROM shop_orders WHERE id = $1", order_id
         )
@@ -563,7 +563,7 @@ async def shop_admin_cats(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         cats = await conn.fetch(
             "SELECT id, name FROM shop_categories WHERE bot_id = $1 ORDER BY position",
             row['id']
@@ -589,7 +589,7 @@ async def shop_add_cat_start(callback: CallbackQuery, bot: Bot, state: FSMContex
 @router.message(ShopStates.add_cat_name)
 async def shop_add_cat_save(message: Message, state: FSMContext, bot: Bot):
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO shop_categories (bot_id, name) VALUES ($1, $2)
         """, row['id'], message.text.strip())
@@ -607,7 +607,7 @@ async def shop_admin_cat_detail(callback: CallbackQuery, bot: Bot):
         return
     cat_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         cat = await conn.fetchrow("SELECT * FROM shop_categories WHERE id = $1", cat_id)
         count = await conn.fetchval(
             "SELECT COUNT(*) FROM shop_products WHERE category_id = $1", cat_id
@@ -627,7 +627,7 @@ async def shop_del_cat(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     cat_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM shop_categories WHERE id = $1", cat_id)
     await callback.answer("✅ Kategoriya o'chirildi!", show_alert=True)
     await shop_admin_cats(callback, bot)
@@ -687,7 +687,7 @@ async def add_product_photo(message: Message, state: FSMContext, bot: Bot):
         await message.answer("❌ Rasm yuboring yoki — yozing.")
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO shop_products
             (category_id, bot_id, name, price, description, photo_id)
@@ -710,7 +710,7 @@ async def shop_admin_products(callback: CallbackQuery, bot: Bot):
         return
     cat_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         products = await conn.fetch(
             "SELECT id, name, price FROM shop_products WHERE category_id = $1",
             cat_id
@@ -740,7 +740,7 @@ async def shop_del_product(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     product_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM shop_products WHERE id = $1", product_id)
     await callback.answer("✅ Mahsulot o'chirildi!", show_alert=True)
 
@@ -753,7 +753,7 @@ async def shop_admin_orders(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         orders = await conn.fetch("""
             SELECT id, full_name, total_price, status, created_at
             FROM shop_orders WHERE bot_id = $1 AND status = 'new'
@@ -783,7 +783,7 @@ async def shop_admin_history(callback: CallbackQuery, bot: Bot):
         return
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         orders = await conn.fetch("""
             SELECT id, full_name, total_price, status, created_at
             FROM shop_orders
@@ -819,7 +819,7 @@ async def shop_admin_stats(callback: CallbackQuery, bot: Bot):
     row = await get_bot_row(bot)
     bot_id = row['id']
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         total_orders = await conn.fetchval(
             "SELECT COUNT(*) FROM shop_orders WHERE bot_id = $1", bot_id
         )
@@ -862,7 +862,7 @@ async def shop_broadcast_send(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
     row = await get_bot_row(bot)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         users = await conn.fetch(
             "SELECT DISTINCT user_id FROM shop_orders WHERE bot_id = $1", row['id']
         )
@@ -889,7 +889,7 @@ async def shop_channels(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT id, channel_name FROM bot_required_channels WHERE bot_id = $1",
             row['id']
@@ -941,7 +941,7 @@ async def shop_ch_url(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     await state.clear()
     row = await get_bot_row(bot)
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO bot_required_channels (bot_id, channel_id, channel_name, channel_url)
             VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
@@ -958,7 +958,7 @@ async def shop_del_ch(callback: CallbackQuery, bot: Bot):
     if not await is_admin_user(bot, callback.from_user.id):
         return
     ch_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM bot_required_channels WHERE id = $1", ch_id)
     await callback.answer("✅ O'chirildi!", show_alert=True)
     await shop_channels(callback, bot)

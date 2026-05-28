@@ -29,7 +29,7 @@ class KinoStates(StatesGroup):
 # ═══════════════════════════════════════
 
 async def get_bot_id(token: str) -> int | None:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_token = $1", token
         )
@@ -37,7 +37,7 @@ async def get_bot_id(token: str) -> int | None:
 
 
 async def check_subscription(bot: Bot, user_id: int, bot_id: int) -> tuple[bool, list]:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch("""
             SELECT id, channel_id, channel_name, channel_url
             FROM bot_required_channels WHERE bot_id = $1
@@ -60,7 +60,7 @@ async def check_subscription(bot: Bot, user_id: int, bot_id: int) -> tuple[bool,
 
 
 async def register_user(bot_id: int, user_id: int, username: str):
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO kinobot_users (bot_id, user_id, username)
             VALUES ($1, $2, $3)
@@ -69,7 +69,7 @@ async def register_user(bot_id: int, user_id: int, username: str):
 
 
 async def is_banned(bot_id: int, user_id: int) -> bool:
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT is_banned FROM kinobot_users
             WHERE bot_id = $1 AND user_id = $2
@@ -86,7 +86,7 @@ async def kino_start(message: Message, bot: Bot):
     token = (await bot.get_me()).token if hasattr(bot, 'token') else None
     bot_info = await bot.get_me()
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id, admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -125,7 +125,7 @@ async def kino_start(message: Message, bot: Bot):
 @router.callback_query(F.data == "kino_check_sub")
 async def kino_check_sub(callback: CallbackQuery, bot: Bot):
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -151,7 +151,7 @@ async def kino_check_sub(callback: CallbackQuery, bot: Bot):
 @router.message(F.text & ~F.text.startswith("/"))
 async def kino_code_handler(message: Message, bot: Bot):
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id, admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -178,7 +178,7 @@ async def kino_code_handler(message: Message, bot: Bot):
 
     code = message.text.strip().lower()
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         movie = await conn.fetchrow("""
             SELECT name, file_id FROM kinobot_movies
             WHERE bot_id = $1 AND LOWER(code) = $2
@@ -205,7 +205,7 @@ async def kino_code_handler(message: Message, bot: Bot):
 
 async def is_admin(bot: Bot, user_id: int) -> bool:
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT admin_id FROM bots WHERE bot_username = $1",
             bot_info.username
@@ -280,7 +280,7 @@ async def kino_add_file(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
 
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -340,7 +340,7 @@ async def kino_delete_code(message: Message, state: FSMContext, bot: Bot):
     code = message.text.strip().lower()
     bot_info = await bot.get_me()
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -380,7 +380,7 @@ async def kino_list_handler(callback: CallbackQuery, bot: Bot):
         return
 
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -416,7 +416,7 @@ async def kino_stats_handler(callback: CallbackQuery, bot: Bot):
         return
 
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -462,7 +462,7 @@ async def kino_broadcast_send(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
     bot_info = await bot.get_me()
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -494,7 +494,7 @@ async def kino_channels_handler(callback: CallbackQuery, bot: Bot):
     if not await is_admin(bot, callback.from_user.id):
         return
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -542,7 +542,7 @@ async def kino_ch_url(message: Message, state: FSMContext, bot: Bot):
     await state.clear()
 
     bot_info = await bot.get_me()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_row = await conn.fetchrow(
             "SELECT id FROM bots WHERE bot_username = $1", bot_info.username
         )
@@ -563,7 +563,7 @@ async def kino_del_ch(callback: CallbackQuery, bot: Bot):
     if not await is_admin(bot, callback.from_user.id):
         return
     ch_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "DELETE FROM bot_required_channels WHERE id = $1", ch_id
         )

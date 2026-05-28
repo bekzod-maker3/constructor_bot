@@ -75,7 +75,7 @@ async def start_template_bot(bot_data: dict):
     except Exception as e:
         logger.error(f"❌ Bot #{bot_id} ishga tushmadi: {e}")
         # DBda is_running = FALSE qilish
-        async with pool.acquire() as conn:
+        async with database.pool.acquire() as conn:
             await conn.execute(
                 "UPDATE bots SET is_running = FALSE WHERE id = $1", bot_id
             )
@@ -130,7 +130,7 @@ async def startup_all_bots():
     # 👈 Faylning eng tepasidagi pool importini o'chirib, aynan shu yerga (funksiya ichiga) qo'ying:
     from database import pool  # ⚠️ 'database' o'rniga sizda qaysi modul bo'lsa o'shani yozing (masalan: from utils.db import pool)
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_token, bot_username, admin_id, template_type
             FROM bots WHERE is_running = TRUE
