@@ -1,5 +1,5 @@
 from aiogram import Bot
-from aiogram.types import ChatMemberStatus
+from aiogram.enums import ChatMemberStatus
 from database import pool
 
 
