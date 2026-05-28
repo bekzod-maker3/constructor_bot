@@ -5,7 +5,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 
-from database import pool, get_setting, set_setting
+import database
+from database import get_setting, set_setting
 from keyboards.admin_menu import (
     admin_main_kb, admin_users_kb, admin_user_action_kb,
     admin_payments_kb, admin_payment_action_kb, admin_bots_kb,
