@@ -3,7 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 
-from database import pool
+import database
 from keyboards.bot_create_menu import my_bots_kb, bot_detail_kb
 from keyboards.main_menu import back_to_main_kb, template_select_kb, confirm_kb
 from utils.billing import can_create_bot
@@ -25,7 +25,7 @@ TEMPLATE_NAMES = {
 
 @router.callback_query(F.data == "my_bots")
 async def my_bots_handler(callback: CallbackQuery):
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_username, template_type, is_running, created_at
             FROM bots WHERE user_id = $1
