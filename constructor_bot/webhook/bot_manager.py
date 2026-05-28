@@ -123,23 +123,27 @@ async def process_update(token: str, update_data: dict):
         logger.error(f"Update qayta ishlashda xato: {e}")
 
 
-    async def startup_all_bots():
-    """
-    Server qayta ishga tushganda barcha faol botlarni yuklash
-    """
-    async with pool.acquire() as conn:
-        bots = await conn.fetch("""
-            SELECT id, bot_token, bot_username, admin_id, template_type
-            FROM bots WHERE is_running = TRUE
-        """)
+   async def startup_all_bots():
+    """
+    Server qayta ishga tushganda barcha faol botlarni yuklash
+    """
+    # 💡 Mana shu ikki qator kodingizni o'zgartirmasdan xatoni tuzatadi:
+    import database
+    pool = database.pool  
 
-    logger.info(f"📦 {len(bots)} ta bot yuklanmoqda...")
+    async with pool.acquire() as conn:
+        bots = await conn.fetch("""
+            SELECT id, bot_token, bot_username, admin_id, template_type
+            FROM bots WHERE is_running = TRUE
+        """)
 
-    for bot_data in bots:
-        await start_template_bot(dict(bot_data))
-        await asyncio.sleep(0.1)  # Telegram rate limit
+    logger.info(f"📦 {len(bots)} ta bot yuklanmoqda...")
 
-    logger.info(f"✅ Barcha botlar ishga tushdi")
+    for bot_data in bots:
+        await start_template_bot(dict(bot_data))
+        await asyncio.sleep(0.1)  # Telegram rate limit
+
+    logger.info(f"✅ Barcha botlar ishga tushdi")
 
 
 async def shutdown_all_bots():
