@@ -2,7 +2,8 @@ from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from database import pool, get_setting
+import database
+from database import  get_setting
 from keyboards.main_menu import back_to_main_kb
 
 router = Router()
@@ -19,7 +20,7 @@ async def referral_handler(callback: CallbackQuery, bot: Bot):
     referral_link = f"https://t.me/{bot_username}?start=ref_{user_id}"
 
     # Referral statistika
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         refs_count = await conn.fetchval("""
             SELECT COUNT(*) FROM referrals WHERE referrer_id = $1
         """, user_id)
