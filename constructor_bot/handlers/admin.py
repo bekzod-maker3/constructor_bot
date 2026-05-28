@@ -80,7 +80,7 @@ async def admin_stats_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         total_users = await conn.fetchval("SELECT COUNT(*) FROM users")
         trial_users = await conn.fetchval(
             "SELECT COUNT(*) FROM users WHERE trial_ends_at > NOW()"
@@ -143,7 +143,7 @@ async def admin_users_list_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         users = await conn.fetch("""
             SELECT user_id, username, full_name, balance, is_banned, created_at
             FROM users ORDER BY created_at DESC LIMIT 20
@@ -188,7 +188,7 @@ async def admin_search_user_result(message: Message, state: FSMContext):
 
     query = message.text.strip().replace("@", "")
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         try:
             user_id = int(query)
             user = await conn.fetchrow(
@@ -240,7 +240,7 @@ async def admin_ban_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
     user_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "UPDATE users SET is_banned = TRUE WHERE user_id = $1", user_id
         )
@@ -254,7 +254,7 @@ async def admin_unban_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
     user_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "UPDATE users SET is_banned = FALSE WHERE user_id = $1", user_id
         )
@@ -324,7 +324,7 @@ async def admin_payments_pending_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         payments = await conn.fetch("""
             SELECT p.id, p.user_id, p.amount, p.created_at,
                    u.full_name, u.username
@@ -360,7 +360,7 @@ async def admin_view_payment_handler(callback: CallbackQuery, bot: Bot):
         return
     payment_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         payment = await conn.fetchrow("""
             SELECT p.*, u.full_name, u.username
             FROM payments p JOIN users u ON p.user_id = u.user_id
@@ -393,7 +393,7 @@ async def admin_confirm_payment(callback: CallbackQuery, bot: Bot):
         return
     payment_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         payment = await conn.fetchrow(
             "SELECT * FROM payments WHERE id = $1", payment_id
         )
@@ -430,7 +430,7 @@ async def admin_reject_payment(callback: CallbackQuery, bot: Bot):
         return
     payment_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         payment = await conn.fetchrow(
             "SELECT * FROM payments WHERE id = $1", payment_id
         )
@@ -472,7 +472,7 @@ async def admin_bots_list_handler(callback: CallbackQuery):
         return
     is_running = callback.data == "admin_bots_active"
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT b.id, b.bot_username, b.template_type, b.is_running,
                    u.full_name, u.user_id
@@ -513,7 +513,7 @@ async def admin_bot_detail_handler(callback: CallbackQuery):
         return
     bot_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot = await conn.fetchrow("""
             SELECT b.*, u.full_name FROM bots b
             JOIN users u ON b.user_id = u.user_id WHERE b.id = $1
@@ -545,7 +545,7 @@ async def admin_delete_bot_handler(callback: CallbackQuery):
         return
     bot_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("DELETE FROM bots WHERE id = $1", bot_id)
 
     from webhook.bot_manager import stop_template_bot
@@ -742,7 +742,7 @@ async def toggle_maintenance_handler(callback: CallbackQuery):
 async def admin_channels_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         channels = await conn.fetch(
             "SELECT * FROM required_channels WHERE is_active = TRUE"
         )
@@ -793,7 +793,7 @@ async def channel_url_received(message: Message, state: FSMContext):
     data = await state.get_data()
     await state.clear()
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO required_channels (channel_id, channel_name, channel_url)
             VALUES ($1, $2, $3)
@@ -814,7 +814,7 @@ async def admin_del_channel_handler(callback: CallbackQuery):
     if not is_admin(callback.from_user.id):
         return
     channel_id = int(callback.data.split("_")[-1])
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute(
             "UPDATE required_channels SET is_active = FALSE WHERE id = $1",
             channel_id
