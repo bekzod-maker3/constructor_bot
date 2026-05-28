@@ -4,7 +4,7 @@ from aiogram.types import Update
 import asyncio
 import logging
 
-from database import pool
+import database
 from config import WEBHOOK_HOST, get_template_webhook_url
 
 logger = logging.getLogger(__name__)
