@@ -55,7 +55,7 @@ async def apply_referral_bonus(referrer_id: int, new_user_id: int):
     if referral_enabled != 'true':
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         # Avval bu foydalanuvchi orqali referral bo'lganmi tekshirish
         exists = await conn.fetchval("""
             SELECT id FROM referrals WHERE referred_id = $1
@@ -131,7 +131,7 @@ async def start_handler(message: Message, bot: Bot, state: FSMContext):
     await state.clear()
 
     # Ban tekshirish
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         banned = await conn.fetchval(
             "SELECT is_banned FROM users WHERE user_id = $1", user_id
         )
@@ -156,7 +156,7 @@ async def start_handler(message: Message, bot: Bot, state: FSMContext):
     referrer_id = await get_referral_from_args(args)
 
     is_new_user = False
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         exists = await conn.fetchval(
             "SELECT user_id FROM users WHERE user_id = $1", user_id
         )
@@ -189,7 +189,7 @@ async def check_subscription_handler(callback: CallbackQuery, bot: Bot, state: F
         )
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", user_id
         )
@@ -208,7 +208,7 @@ async def check_subscription_handler(callback: CallbackQuery, bot: Bot, state: F
 @router.callback_query(F.data == "main_menu")
 async def main_menu_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", callback.from_user.id
         )
