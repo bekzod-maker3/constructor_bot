@@ -36,7 +36,7 @@ async def get_pool() -> asyncpg.Pool:
 # ═══════════════════════════════════════
 async def create_tables():
     """Barcha jadvallarni yaratish"""
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
 
         # ── SETTINGS (tizim sozlamalari) ──
         await conn.execute("""
