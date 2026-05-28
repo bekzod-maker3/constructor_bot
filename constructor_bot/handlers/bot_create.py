@@ -236,7 +236,7 @@ async def bot_create_confirmed(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text("⏳ Bot yaratilmoqda...")
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_id = await conn.fetchval("""
             INSERT INTO bots (user_id, bot_token, bot_username, admin_id, template_type, is_running)
             VALUES ($1, $2, $3, $4, $5, TRUE)
