@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import aiohttp
 
-from database import pool
+import database 
 from keyboards.main_menu import back_to_main_kb, confirm_kb
 from keyboards.bot_create_menu import my_bots_kb
 from webhook.bot_manager import start_template_bot
@@ -140,7 +140,7 @@ async def token_received(message: Message, state: FSMContext):
         )
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         exists = await conn.fetchval(
             "SELECT id FROM bots WHERE bot_token = $1", token
         )
