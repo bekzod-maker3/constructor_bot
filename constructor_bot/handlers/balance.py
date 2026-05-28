@@ -4,7 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 
-from database import pool, get_setting
+import database
+from database import get_setting
 from keyboards.bot_create_menu import balance_kb, topup_amounts_kb, after_topup_kb
 from keyboards.main_menu import back_to_main_kb
 from utils.billing import get_payment_history, reactivate_bots_if_balance
@@ -25,7 +26,7 @@ class BalanceStates(StatesGroup):
 
 @router.callback_query(F.data == "balance")
 async def balance_handler(callback: CallbackQuery):
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", callback.from_user.id
         )
