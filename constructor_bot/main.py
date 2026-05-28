@@ -1,8 +1,8 @@
-import uvicorn
 import logging
 import sys
+import uvicorn
 
-# Logging sozlash
+# 1. Logging sozlash (Har doim eng tepada turishi kerak)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -11,10 +11,11 @@ logging.basicConfig(
     ]
 )
 
+# 2. Server va konfiguratsiyani import qilish
 from webhook.server import app
 from config import WEBHOOK_PORT
 
-
+# 3. Serverni ishga tushirish
 if __name__ == "__main__":
     uvicorn.run(
         app,
@@ -22,16 +23,3 @@ if __name__ == "__main__":
         port=WEBHOOK_PORT,
         log_level="info",
     )
-from aiogram import Dispatcher, Router
-from handlers import start, bot_create, my_bots, balance, referral, admin
-
-router = Router()
-router.include_router(start.router)
-router.include_router(bot_create.router)
-router.include_router(my_bots.router)
-router.include_router(balance.router)
-router.include_router(referral.router)
-router.include_router(admin.router)
-
-dp = Dispatcher()
-dp.include_router(router)
