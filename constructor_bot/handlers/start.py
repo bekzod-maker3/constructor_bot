@@ -4,7 +4,8 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
-from database import pool, get_setting
+import database
+from database import  get_setting
 from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb, remove_kb, remove_kb
 from utils.subscription import check_user_subscription
 from config import ADMIN_ID
@@ -18,7 +19,7 @@ router = Router()
 
 async def get_or_create_user(user_id: int, username: str, full_name: str) -> dict:
     """Foydalanuvchini olish yoki yaratish"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", user_id
         )
