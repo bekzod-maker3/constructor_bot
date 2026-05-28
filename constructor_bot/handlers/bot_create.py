@@ -93,7 +93,7 @@ class BotCreateStates(StatesGroup):
 # ═══════════════════════════════════════
 # Agar start.py ichida bu tugma yozilmagan bo'lsa, shu handler ishlaydi. 
 # Bu yerda shablonlar inline tugmasini chiqaruvchi keyboardingizni (masalan, templates_kb) ulashingiz kerak.
-@router.message(F.text == "🆕 Bot yaratish", state="*")
+@router.message(F.text == "🆕 Bot yaratish")
 async def main_menu_create_bot(message: Message, state: FSMContext):
     await state.clear()
     # 💡 Bu yerda shablonlar inline tugmalari chiqishi kerak. 
