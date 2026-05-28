@@ -146,4 +146,4 @@ async def shutdown_all_bots():
     """Barcha botlarni yopish"""
     bot_ids = list(running_bots.keys())
     for bot_id in bot_ids:
-        # Bu yerda sizda qolgan kod qismi davom etadi...
+        pass
