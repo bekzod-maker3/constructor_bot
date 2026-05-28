@@ -65,7 +65,7 @@ async def my_bots_handler(callback: CallbackQuery):
 async def bot_detail_handler(callback: CallbackQuery):
     bot_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot = await conn.fetchrow("""
             SELECT * FROM bots WHERE id = $1 AND user_id = $2
         """, bot_id, callback.from_user.id)
@@ -108,7 +108,7 @@ async def bot_start_handler(callback: CallbackQuery, bot: Bot):
         await callback.answer(f"❌ {reason}", show_alert=True)
         return
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_data = await conn.fetchrow("""
             SELECT * FROM bots WHERE id = $1 AND user_id = $2
         """, bot_id, user_id)
@@ -133,7 +133,7 @@ async def bot_start_handler(callback: CallbackQuery, bot: Bot):
 async def bot_stop_handler(callback: CallbackQuery):
     bot_id = int(callback.data.split("_")[-1])
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         await conn.execute("""
             UPDATE bots SET is_running = FALSE WHERE id = $1 AND user_id = $2
         """, bot_id, callback.from_user.id)
@@ -170,7 +170,7 @@ async def bot_delete_handler(callback: CallbackQuery):
     bot_id = int(callback.data.split("_")[-1])
     user_id = callback.from_user.id
 
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bot_data = await conn.fetchrow("""
             SELECT * FROM bots WHERE id = $1 AND user_id = $2
         """, bot_id, user_id)
