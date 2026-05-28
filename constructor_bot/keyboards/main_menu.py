@@ -1,19 +1,37 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import (
+    InlineKeyboardMarkup, InlineKeyboardButton,
+    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+)
 
 
-def main_menu_kb() -> InlineKeyboardMarkup:
-    """Asosiy menyu"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🆕 Bot yaratish", callback_data="create_bot")],
-        [InlineKeyboardButton(text="📋 Mening botlarim", callback_data="my_bots")],
-        [InlineKeyboardButton(text="💰 Balans", callback_data="balance")],
-        [InlineKeyboardButton(text="🔗 Do'st taklif qilish", callback_data="referral")],
-        [InlineKeyboardButton(text="📞 Yordam", callback_data="help")],
-    ])
+def main_menu_kb() -> ReplyKeyboardMarkup:
+    """Asosiy menyu — Reply Keyboard (pastda doim ko'rinadi)"""
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🆕 Bot yaratish"),
+                KeyboardButton(text="📋 Mening botlarim"),
+            ],
+            [
+                KeyboardButton(text="💰 Balans"),
+                KeyboardButton(text="🔗 Do'st taklif qilish"),
+            ],
+            [
+                KeyboardButton(text="📞 Yordam"),
+            ],
+        ],
+        resize_keyboard=True,
+        persistent=True,
+    )
+
+
+def remove_kb() -> ReplyKeyboardRemove:
+    """Klaviaturani yashirish (state paytida)"""
+    return ReplyKeyboardRemove()
 
 
 def back_to_main_kb() -> InlineKeyboardMarkup:
-    """Orqaga — Asosiy menyu"""
+    """Orqaga — Asosiy menyu (inline)"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="main_menu")],
     ])
@@ -26,7 +44,7 @@ def cancel_kb() -> InlineKeyboardMarkup:
     ])
 
 
-def subscription_check_kb(channels: list, bot_url: str = None) -> InlineKeyboardMarkup:
+def subscription_check_kb(channels: list) -> InlineKeyboardMarkup:
     """Majburiy obuna tugmalari"""
     buttons = []
     for ch in channels:
