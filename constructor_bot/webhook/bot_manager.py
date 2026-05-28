@@ -127,6 +127,9 @@ async def startup_all_bots():
     """
     Server qayta ishga tushganda barcha faol botlarni yuklash
     """
+    # 👈 Faylning eng tepasidagi pool importini o'chirib, aynan shu yerga (funksiya ichiga) qo'ying:
+    from database import pool  # ⚠️ 'database' o'rniga sizda qaysi modul bo'lsa o'shani yozing (masalan: from utils.db import pool)
+
     async with pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_token, bot_username, admin_id, template_type
@@ -134,6 +137,7 @@ async def startup_all_bots():
         """)
 
     logger.info(f"📦 {len(bots)} ta bot yuklanmoqda...")
+    # ... qolgan kodlaringiz o'zgarishsiz qoladi
 
     for bot_data in bots:
         await start_template_bot(dict(bot_data))
