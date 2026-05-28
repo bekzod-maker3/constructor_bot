@@ -45,7 +45,7 @@ async def balance_handler(callback: CallbackQuery):
     daily_price = await get_setting('daily_price') or '3000'
 
     # Faol botlar soni
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bots_count = await conn.fetchval("""
             SELECT COUNT(*) FROM bots
             WHERE user_id = $1 AND is_running = TRUE
@@ -155,7 +155,7 @@ async def check_received_handler(message: Message, state: FSMContext, bot: Bot):
     photo_id = message.photo[-1].file_id
 
     # To'lovni DBga yozish
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         payment_id = await conn.fetchval("""
             INSERT INTO payments (user_id, amount, check_file_id, status)
             VALUES ($1, $2, $3, 'pending')
