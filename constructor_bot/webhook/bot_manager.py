@@ -127,7 +127,8 @@ async def startup_all_bots():
     """
     Server qayta ishga tushganda barcha faol botlarni yuklash
     """
-    async with pool.acquire() as conn:
+    # 📝 pool.acquire() o'rniga database.pool.acquire() qilindi
+    async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_token, bot_username, admin_id, template_type
             FROM bots WHERE is_running = TRUE
