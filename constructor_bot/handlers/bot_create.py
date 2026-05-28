@@ -104,7 +104,7 @@ async def main_menu_create_bot(message: Message, state: FSMContext):
 # ═══════════════════════════════════════
 # SHABLON TANLASH → YO'RIQNOMA
 # ═══════════════════════════════════════
-@router.callback_query(F.data.startswith("template_"), state="*")
+@router.callback_query(F.data.startswith("template_"))
 async def template_selected(callback: CallbackQuery, state: FSMContext):
     template_type = callback.data.replace("template_", "")
 
