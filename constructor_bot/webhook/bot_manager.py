@@ -127,10 +127,6 @@ async def startup_all_bots():
     """
     Server qayta ishga tushganda barcha faol botlarni yuklash
     """
-    # 💡 Mana shu ikki qator kodingizni o'zgartirmasdan xatoni tuzatadi:
-    import database
-    pool = database.pool  
-
     async with pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_token, bot_username, admin_id, template_type
@@ -150,5 +146,4 @@ async def shutdown_all_bots():
     """Barcha botlarni yopish"""
     bot_ids = list(running_bots.keys())
     for bot_id in bot_ids:
-        await stop_template_bot(bot_id)
-    logger.info("🔌 Barcha botlar to'xtatildi")
+        # Bu yerda sizda qolgan kod qismi davom etadi...
