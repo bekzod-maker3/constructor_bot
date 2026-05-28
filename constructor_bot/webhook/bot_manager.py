@@ -124,23 +124,22 @@ async def process_update(token: str, update_data: dict):
 
 
 async def startup_all_bots():
-    """
-    Server qayta ishga tushganda barcha faol botlarni yuklash
-    """
-    # 📝 pool.acquire() o'rniga database.pool.acquire() qilindi
-    async with database.pool.acquire() as conn:
-        bots = await conn.fetch("""
-            SELECT id, bot_token, bot_username, admin_id, template_type
-            FROM bots WHERE is_running = TRUE
-        """)
+    """
+    Server qayta ishga tushganda barcha faol botlarni yuklash
+    """
+    async with pool.acquire() as conn:
+        bots = await conn.fetch("""
+            SELECT id, bot_token, bot_username, admin_id, template_type
+            FROM bots WHERE is_running = TRUE
+        """)
 
-    logger.info(f"📦 {len(bots)} ta bot yuklanmoqda...")
+    logger.info(f"📦 {len(bots)} ta bot yuklanmoqda...")
 
-    for bot_data in bots:
-        await start_template_bot(dict(bot_data))
-        await asyncio.sleep(0.1)  # Telegram rate limit
+    for bot_data in bots:
+        await start_template_bot(dict(bot_data))
+        await asyncio.sleep(0.1)  # Telegram rate limit
 
-    logger.info(f"✅ Barcha botlar ishga tushdi")
+    logger.info(f"✅ Barcha botlar ishga tushdi")
 
 
 async def shutdown_all_bots():
