@@ -5,8 +5,8 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
 import database
-from database import  get_setting
-from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb, remove_kb, remove_kb
+from database import get_setting
+from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb, remove_kb
 from utils.subscription import check_user_subscription
 from config import ADMIN_ID
 
@@ -108,7 +108,7 @@ async def send_main_menu(target, user: dict, state: FSMContext = None):
     text = (
         f"👋 Xush kelibsiz, <b>{user['full_name']}</b>!\n\n"
         f"{trial_text}"
-        f"💰 Balans: <b>{user['balance']:,} so\'m</b>\n\n"
+        f"💰 Balans: <b>{user['balance']:,} so'm</b>\n\n"
         f"Quyidagi tugmalardan birini tanlang:"
     )
 
@@ -246,10 +246,9 @@ async def help_handler(callback: CallbackQuery):
 
 @router.message(F.text == "🆕 Bot yaratish")
 async def reply_create_bot(message: Message):
-    from handlers.my_bots import create_bot_handler
-    # Fake callback yaratish o'rniga to'g'ridan inline menyu chiqaramiz
     from keyboards.main_menu import template_select_kb
     from utils.billing import can_create_bot
+    
     user_id = message.from_user.id
     can, reason = await can_create_bot(user_id)
     if not can:
@@ -268,8 +267,8 @@ async def reply_create_bot(message: Message):
 
 @router.message(F.text == "📋 Mening botlarim")
 async def reply_my_bots(message: Message):
-    from database import pool
-    from keyboards.bot_create_menu import my_bots_kb
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
     async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_username, template_type, is_running, created_at
@@ -282,26 +281,37 @@ async def reply_my_bots(message: Message):
             "🤖 <b>Mening botlarim</b>\n\n"
             "Hali birorta bot yaratmadingiz.\n"
             "«🆕 Bot yaratish» tugmasini bosing.",
+            reply_markup=back_to_main_kb(),
             parse_mode="HTML"
         )
         return
 
     bots_list = [dict(b) for b in bots]
     running = sum(1 for b in bots_list if b['is_running'])
+    
+    # Inline keyboard yaratish
+    buttons = []
+    for bot in bots_list:
+        status = "✅" if bot['is_running'] else "⏸"
+        buttons.append([InlineKeyboardButton(
+            text=f"{status} {bot['bot_username']}",
+            callback_data=f"view_bot_{bot['id']}"
+        )])
+    buttons.append([InlineKeyboardButton(text="◀️ Orqaga", callback_data="main_menu")])
+    
     await message.answer(
         f"🤖 <b>Mening botlarim</b>\n\n"
         f"Jami: <b>{len(bots_list)} ta</b> | Faol: <b>{running} ta</b>\n\n"
         f"Botni tanlang:",
-        reply_markup=my_bots_kb(bots_list),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
         parse_mode="HTML"
     )
 
 
 @router.message(F.text == "💰 Balans")
 async def reply_balance(message: Message):
-    from database import pool, get_setting
-    from keyboards.bot_create_menu import balance_kb
-    from datetime import datetime
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
     async with database.pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", message.from_user.id
@@ -323,6 +333,11 @@ async def reply_balance(message: Message):
     daily_price = await get_setting('daily_price') or '3000'
     daily_total = int(daily_price) * (bots_count or 0)
 
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 Balans to'ldirish", callback_data="topup_balance")],
+        [InlineKeyboardButton(text="◀️ Orqaga", callback_data="main_menu")],
+    ])
+
     await message.answer(
         f"💰 <b>Balans</b>\n\n"
         f"{trial_text}"
@@ -330,14 +345,13 @@ async def reply_balance(message: Message):
         f"🤖 Faol botlar: <b>{bots_count} ta</b>\n"
         f"📊 Kunlik to'lov: <b>{daily_total:,} so'm</b>\n\n"
         f"Balansni to'ldirish uchun tugmani bosing 👇",
-        reply_markup=balance_kb(),
+        reply_markup=kb,
         parse_mode="HTML"
     )
 
 
 @router.message(F.text == "🔗 Do'st taklif qilish")
 async def reply_referral(message: Message, bot: Bot):
-    from database import pool, get_setting
     user_id = message.from_user.id
     bot_info = await bot.get_me()
     referral_link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
