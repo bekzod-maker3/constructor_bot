@@ -5,7 +5,8 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
 import database
-from database import pool, get_setting
+from database import pool
+from database import get_setting
 from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb
 from utils.subscription import check_user_subscription
 from config import ADMIN_ID
