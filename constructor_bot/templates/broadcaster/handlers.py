@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 
+import database
 from database import pool
 from templates.broadcaster.keyboards import (
     main_menu_kb, back_main_kb, content_type_kb,
