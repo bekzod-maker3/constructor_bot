@@ -2,6 +2,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from aiogram import Bot
 import logging
+from database import pool
 
 from utils.billing import process_daily_charges
 from utils.notifications import notify_stopped_bots
