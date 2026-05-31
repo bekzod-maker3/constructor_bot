@@ -4,10 +4,8 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
-import database
-from database import pool
-from database import get_setting
-from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb, remove_kb
+from database import pool, get_setting
+from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb
 from utils.subscription import check_user_subscription
 from config import ADMIN_ID
 
@@ -20,7 +18,7 @@ router = Router()
 
 async def get_or_create_user(user_id: int, username: str, full_name: str) -> dict:
     """Foydalanuvchini olish yoki yaratish"""
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", user_id
         )
@@ -56,15 +54,13 @@ async def apply_referral_bonus(referrer_id: int, new_user_id: int):
     if referral_enabled != 'true':
         return
 
-    async with database.pool.acquire() as conn:
-        # Avval bu foydalanuvchi orqali referral bo'lganmi tekshirish
+    async with pool.acquire() as conn:
         exists = await conn.fetchval("""
             SELECT id FROM referrals WHERE referred_id = $1
         """, new_user_id)
         if exists:
             return
 
-        # Referrer mavjudligini tekshirish
         referrer = await conn.fetchrow(
             "SELECT user_id FROM users WHERE user_id = $1", referrer_id
         )
@@ -73,18 +69,15 @@ async def apply_referral_bonus(referrer_id: int, new_user_id: int):
 
         bonus = int(await get_setting('referral_bonus') or 5000)
 
-        # Bonusni berish
         await conn.execute("""
             UPDATE users SET balance = balance + $1 WHERE user_id = $2
         """, bonus, referrer_id)
 
-        # Referral tarixiga yozish
         await conn.execute("""
             INSERT INTO referrals (referrer_id, referred_id, bonus_amount)
             VALUES ($1, $2, $3)
         """, referrer_id, new_user_id, bonus)
 
-        # Yangi foydalanuvchiga referred_by yozish
         await conn.execute("""
             UPDATE users SET referred_by = $1 WHERE user_id = $2
         """, referrer_id, new_user_id)
@@ -120,7 +113,7 @@ async def send_main_menu(target, user: dict, state: FSMContext = None):
 
 
 # ═══════════════════════════════════════
-# HANDLERLAR
+# START
 # ═══════════════════════════════════════
 
 @router.message(CommandStart())
@@ -131,8 +124,7 @@ async def start_handler(message: Message, bot: Bot, state: FSMContext):
 
     await state.clear()
 
-    # Ban tekshirish
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         banned = await conn.fetchval(
             "SELECT is_banned FROM users WHERE user_id = $1", user_id
         )
@@ -140,7 +132,6 @@ async def start_handler(message: Message, bot: Bot, state: FSMContext):
             await message.answer("🚫 Siz bloklangansiz. Admin bilan bog'laning.")
             return
 
-    # Majburiy obuna tekshirish
     is_subscribed, not_subscribed = await check_user_subscription(bot, user_id)
     if not is_subscribed:
         channels_text = "\n".join([f"• {ch['channel_name']}" for ch in not_subscribed])
@@ -152,12 +143,11 @@ async def start_handler(message: Message, bot: Bot, state: FSMContext):
         )
         return
 
-    # Foydalanuvchini yaratish yoki olish
     args = message.text.split()[-1] if len(message.text.split()) > 1 else ""
     referrer_id = await get_referral_from_args(args)
 
     is_new_user = False
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         exists = await conn.fetchval(
             "SELECT user_id FROM users WHERE user_id = $1", user_id
         )
@@ -166,11 +156,9 @@ async def start_handler(message: Message, bot: Bot, state: FSMContext):
 
     user = await get_or_create_user(user_id, username, full_name)
 
-    # Referral bonus (faqat yangi foydalanuvchilarga)
     if is_new_user and referrer_id:
         await apply_referral_bonus(referrer_id, user_id)
 
-    # Asosiy menyuni ko'rsatish
     await send_main_menu(message, user, state)
 
 
@@ -190,7 +178,7 @@ async def check_subscription_handler(callback: CallbackQuery, bot: Bot, state: F
         )
         return
 
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", user_id
         )
@@ -209,7 +197,7 @@ async def check_subscription_handler(callback: CallbackQuery, bot: Bot, state: F
 @router.callback_query(F.data == "main_menu")
 async def main_menu_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", callback.from_user.id
         )
@@ -242,7 +230,7 @@ async def help_handler(callback: CallbackQuery):
 
 
 # ═══════════════════════════════════════
-# REPLY KEYBOARD TUGMALARI HANDLERLARI
+# REPLY KEYBOARD TUGMALARI
 # ═══════════════════════════════════════
 
 @router.message(F.text == "🆕 Bot yaratish")
@@ -270,7 +258,7 @@ async def reply_create_bot(message: Message):
 async def reply_my_bots(message: Message):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_username, template_type, is_running, created_at
             FROM bots WHERE user_id = $1
@@ -290,7 +278,6 @@ async def reply_my_bots(message: Message):
     bots_list = [dict(b) for b in bots]
     running = sum(1 for b in bots_list if b['is_running'])
     
-    # Inline keyboard yaratish
     buttons = []
     for bot in bots_list:
         status = "✅" if bot['is_running'] else "⏸"
@@ -313,7 +300,7 @@ async def reply_my_bots(message: Message):
 async def reply_balance(message: Message):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", message.from_user.id
         )
@@ -357,7 +344,7 @@ async def reply_referral(message: Message, bot: Bot):
     bot_info = await bot.get_me()
     referral_link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
 
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         refs_count = await conn.fetchval(
             "SELECT COUNT(*) FROM referrals WHERE referrer_id = $1", user_id
         )
