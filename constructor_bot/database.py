@@ -357,7 +357,7 @@ async def create_tables():
 # SETTINGS FUNKSIYALARI
 # ═══════════════════════════════════════
 async def get_setting(key: str) -> str:
-    async with pool.acquire() as conn:  # database. o'chirib
+    async with pool.acquire() as conn:
         row = await conn.fetchrow(
             "SELECT value FROM settings WHERE key = $1", key
         )
