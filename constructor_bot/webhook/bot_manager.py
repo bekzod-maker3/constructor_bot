@@ -123,7 +123,7 @@ async def process_update(token: str, update_data: dict):
 
 async def startup_all_bots():
     """Server qayta ishga tushganda barcha faol botlarni yuklash"""
-    async with pool.acquire() as conn:
+    async with database.pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_token, bot_username, admin_id, template_type
             FROM bots WHERE is_running = TRUE
