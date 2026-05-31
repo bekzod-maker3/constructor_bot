@@ -4,7 +4,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import aiohttp
 
-import database 
+import database
+from database import pool
 from keyboards.main_menu import back_to_main_kb, confirm_kb
 from keyboards.bot_create_menu import my_bots_kb
 from webhook.bot_manager import start_template_bot
