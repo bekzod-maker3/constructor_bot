@@ -26,12 +26,12 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
 
 
 def remove_kb() -> ReplyKeyboardRemove:
-    """Klaviaturani yashirish (state paytida)"""
+    """Klaviaturani yashirish"""
     return ReplyKeyboardRemove()
 
 
 def back_to_main_kb() -> InlineKeyboardMarkup:
-    """Orqaga — Asosiy menyu (inline)"""
+    """Orqaga — Asosiy menyu"""
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="main_menu")],
     ])
