@@ -4,6 +4,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Update
 import logging
 
+import database
+from database import pool
 from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_URL
 from database import create_pool, close_pool, create_tables, pool
 from webhook.bot_manager import (
