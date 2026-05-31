@@ -7,7 +7,7 @@ import logging
 import database
 from database import pool
 from config import BOT_TOKEN, WEBHOOK_PATH, WEBHOOK_URL
-from database import create_pool, close_pool, create_tables, pool
+from database import create_pool, close_pool, create_tables,
 from webhook.bot_manager import (
     process_update, startup_all_bots, shutdown_all_bots
 )
