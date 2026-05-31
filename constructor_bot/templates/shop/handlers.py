@@ -6,6 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 import json
 import asyncio
 
+import database
 from database import pool
 from templates.shop.keyboards import (
     subscription_kb, main_menu_kb, categories_kb, products_kb,
