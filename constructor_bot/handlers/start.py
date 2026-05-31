@@ -4,6 +4,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 
+import database
 from database import pool, get_setting
 from keyboards.main_menu import main_menu_kb, subscription_check_kb, back_to_main_kb
 from utils.subscription import check_user_subscription
