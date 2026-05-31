@@ -5,6 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import asyncio
 
+import database
 from database import pool
 from templates.referral.keyboards import (
     subscription_kb, phone_kb, main_menu_kb, withdraw_kb,
