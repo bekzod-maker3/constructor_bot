@@ -1,5 +1,7 @@
 from datetime import datetime
-from database import pool, get_setting
+import database
+from database import pool
+from database import get_setting
 
 
 async def get_user_balance(user_id: int) -> int:
