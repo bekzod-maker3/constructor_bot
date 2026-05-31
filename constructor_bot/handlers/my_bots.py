@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime
 
 import database
+from database import pool
 from keyboards.bot_create_menu import my_bots_kb, bot_detail_kb
 from keyboards.main_menu import back_to_main_kb, template_select_kb, confirm_kb
 from utils.billing import can_create_bot
