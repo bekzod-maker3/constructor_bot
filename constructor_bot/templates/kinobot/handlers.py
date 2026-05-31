@@ -4,6 +4,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+import database
 from database import pool
 from templates.kinobot.keyboards import (
     subscription_kb, admin_main_kb, admin_channels_kb, back_admin_kb
