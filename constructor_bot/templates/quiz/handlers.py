@@ -7,6 +7,7 @@ import asyncio
 import random
 import os
 
+import database
 from database import pool
 from templates.quiz.keyboards import (
     subscription_kb, start_quiz_kb, answer_kb,
