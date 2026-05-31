@@ -4,7 +4,6 @@ from aiogram.types import Update
 import asyncio
 import logging
 
-import database
 from database import pool
 from config import WEBHOOK_HOST, get_template_webhook_url
 
@@ -75,8 +74,7 @@ async def start_template_bot(bot_data: dict):
 
     except Exception as e:
         logger.error(f"❌ Bot #{bot_id} ishga tushmadi: {e}")
-        # DBda is_running = FALSE qilish
-        async with database.pool.acquire() as conn:
+        async with pool.acquire() as conn:
             await conn.execute(
                 "UPDATE bots SET is_running = FALSE WHERE id = $1", bot_id
             )
@@ -103,7 +101,6 @@ async def stop_template_bot(bot_id: int):
 
 async def process_update(token: str, update_data: dict):
     """Webhook dan kelgan updateni qayta ishlash"""
-    # Token bo'yicha bot topish
     target_bot = None
     target_dp = None
 
@@ -125,24 +122,18 @@ async def process_update(token: str, update_data: dict):
 
 
 async def startup_all_bots():
-    """
-    Server qayta ishga tushganda barcha faol botlarni yuklash
-    """
-    # 👈 Faylning eng tepasidagi pool importini o'chirib, aynan shu yerga (funksiya ichiga) qo'ying:
-    from database import pool  # ⚠️ 'database' o'rniga sizda qaysi modul bo'lsa o'shani yozing (masalan: from utils.db import pool)
-
-    async with database.pool.acquire() as conn:
+    """Server qayta ishga tushganda barcha faol botlarni yuklash"""
+    async with pool.acquire() as conn:
         bots = await conn.fetch("""
             SELECT id, bot_token, bot_username, admin_id, template_type
             FROM bots WHERE is_running = TRUE
         """)
 
     logger.info(f"📦 {len(bots)} ta bot yuklanmoqda...")
-    # ... qolgan kodlaringiz o'zgarishsiz qoladi
 
     for bot_data in bots:
         await start_template_bot(dict(bot_data))
-        await asyncio.sleep(0.1)  # Telegram rate limit
+        await asyncio.sleep(0.1)
 
     logger.info(f"✅ Barcha botlar ishga tushdi")
 
@@ -151,4 +142,4 @@ async def shutdown_all_bots():
     """Barcha botlarni yopish"""
     bot_ids = list(running_bots.keys())
     for bot_id in bot_ids:
-        pass
+        await stop_template_bot(bot_id)
