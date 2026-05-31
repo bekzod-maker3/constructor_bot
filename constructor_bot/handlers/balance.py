@@ -5,6 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 
 import database
+from database import pool
 from database import get_setting
 from keyboards.bot_create_menu import balance_kb, topup_amounts_kb, after_topup_kb
 from keyboards.main_menu import back_to_main_kb
