@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
 
 import database
+from database import pool
 from database import  get_setting
 from keyboards.main_menu import back_to_main_kb
 
