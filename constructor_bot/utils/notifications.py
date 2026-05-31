@@ -1,5 +1,6 @@
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+import database
 from database import pool
 import asyncio
 
