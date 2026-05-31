@@ -357,7 +357,7 @@ async def create_tables():
 # SETTINGS FUNKSIYALARI
 # ═══════════════════════════════════════
 async def get_setting(key: str) -> str:
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:  # database. o'chirib
         row = await conn.fetchrow(
             "SELECT value FROM settings WHERE key = $1", key
         )
@@ -365,7 +365,7 @@ async def get_setting(key: str) -> str:
 
 
 async def set_setting(key: str, value: str):
-    async with database.pool.acquire() as conn:
+    async with pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO settings (key, value) VALUES ($1, $2)
             ON CONFLICT (key) DO UPDATE SET value = $2
