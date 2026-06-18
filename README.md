@@ -1,16 +1,20 @@
 # 🛠️ Telegram Bot Constructor
 
+Ushbu loyiha foydalanuvchilarga oʻzlarining shaxsiy Telegram botlarini qulay va tezkor tarzda yaratish, sozlash va boshqarish imkoniyatini beruvchi mukammal **Konstruktor Bot** hisoblanadi. Loyiha arxitekturasi modulli va yuqori yuklamalarga chidamli qilib loyihalashtirilgan.
+
 ## 🚀 Texnologiyalar va Arxitektura
 
 Loyiha quyidagi zamonaviy texnologiyalar asosida qurilgan:
-**Backend:** Python (aiogram / asinxron arxitektura)
-**Ma'lumotlar bazasi:** `database.py` (ORM / SQL) va `models/` moduli
-**Ulanish turi:** Telegram Webhook (`webhook/` va `nginx/` integratsiyasi)
-**Konteynerizatsiya:** Docker & Docker Compose (`Dockerfile`, `docker-compose.yml`)
+* **Backend:** Python (aiogram / asinxron arxitektura)
+* **Ma'lumotlar bazasi:** `database.py` (ORM / SQL) va `models/` moduli
+* **Ulanish turi:** Telegram Webhook (`webhook/` va `nginx/` integratsiyasi)
+* **Konteynerizatsiya:** Docker & Docker Compose (`Dockerfile`, `docker-compose.yml`)
 
+---
 
- 📁 Loyiha Strukturasi
+## 📁 Loyiha Strukturasi
 
+```text
 ├── handlers/          # Botning buyruqlari va biznes mantiqini boshqaruvchi qism
 ├── keyboards/         # Inline va Reply tugmalar (klaviaturalar)
 ├── models/            # Ma'lumotlar bazasi modellari va sxemalari
